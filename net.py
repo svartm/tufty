@@ -99,7 +99,7 @@ def generate_board():
         empty_tiles.pop(B)
         BOARD[B[0]][B[1]] += dir_B_to_A # Add connection to B 
         # Debug print
-        print(f"New connection: A={A} val={BOARD[A[0]][A[1]]}, B={B} val={BOARD[B[0]][B[1]]}")
+        # print(f"New connection: A={A} val={BOARD[A[0]][A[1]]}, B={B} val={BOARD[B[0]][B[1]]}")
        
         # Check if A is now full
         neighbors_of_A = [n for n, _ in get_neighbors_with_dir(*A) if n in empty_tiles]
@@ -122,13 +122,46 @@ def generate_board():
                 
 # Helper to draw a tile for net game
 def draw_tile(x, y, value):
-    w = 2 # line weight
+    w = 2 # grid line weight
     grid_size = 40
-    print("Drawing tile:", x, y)
+    tile_size = grid_size - w
+    node_border = 8
+    node_size = tile_size - node_border*2 # 
+    pos_x = x * grid_size
+    pos_y = y * grid_size
+    # print("Drawing tile:", x, y)
     display.set_pen(GREEN)
     tile = Polygon()
     # Draw green square
-    tile.rectangle(x*grid_size, y*grid_size, grid_size-w, grid_size-w)
+    tile.rectangle(pos_x, pos_y, tile_size, tile_size)
+    # for all but origin:
+    if value in [1, 2, 4, 8]:
+        # node
+        tile.rectangle(pos_x + node_border, pos_y + node_border, node_size, node_size)
+        tile.rectangle(pos_x, pos_y+tile_size/2-w, node_border, 2*w)
+    elif value in [6, 9]:
+        # straight line
+        # tile.rectangle(pos_x, pos_y+grid_size/2-w, tile_size, 2*w) 
+        tile.rectangle(pos_x, pos_y, tile_size/2-w, tile_size)
+        tile.rectangle(pos_x, pos_y, tile_size/2+w, tile_size)
+    elif value in [3, 5, 10, 12]:
+        # corner
+        tile.rectangle(pos_x, pos_y, tile_size/2-w, tile_size/2-w)
+        tile.rectangle(pos_x, pos_y, tile_size/2+w, tile_size/2+w)
+        # tile.rectangle(pos_x+grid_size/2-w, pos_y+grid_size/2-w, 2*w, 2*w) #middle pixels
+    elif value in [7, 11, 13, 14]:
+        # T crossing
+        tile.rectangle(pos_x, pos_y, tile_size/2-w, tile_size/2-w)
+        tile.rectangle(pos_x + tile_size/2+w, pos_y, tile_size/2-w, tile_size/2-w)
+        tile.rectangle(pos_x, pos_y, tile_size, tile_size/2+w)
+    elif value == 15:
+        # + crossing
+        tile.rectangle(pos_x, pos_y, tile_size/2-w, tile_size/2-w)
+        tile.rectangle(pos_x + tile_size/2+w, pos_y, tile_size/2-w, tile_size/2-w)
+        tile.rectangle(pos_x, pos_y + tile_size/2+w, tile_size/2-w, tile_size/2-w)
+        tile.rectangle(pos_x + tile_size/2+w, pos_y + tile_size/2+w, tile_size/2-w, tile_size/2-w)
+        tile.rectangle(pos_x, pos_y, tile_size, tile_size) # invert
+    # todo draw origin node
     vector.draw(tile)
     display.update()
     time.sleep(0.2)
@@ -142,7 +175,7 @@ def draw_board():
     print("Finished drawing")
     display.update()
     time.sleep(5)
-
+    
 
 # Helper to print ascii visualization of the board
 def print_board():
