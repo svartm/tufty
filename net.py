@@ -26,121 +26,19 @@ GREEN = display.create_pen(0, 255, 0)
 # Set misc global values
 WIDTH, HEIGHT = display.get_bounds() # Display size
 ROWS, COLS = 5,5 # Board dimensions
+BOARD = [[0 for _ in range(COLS)] for _ in range(ROWS)]
 
+# Clear the display
 def reset():
     display.set_pen(BLACK)
     display.clear()
 
-# Initialize board array with zeros
-board = [[0 for _ in range(COLS)] for _ in range(ROWS)]
+# Write text on the display
+def write(color, message):
+    display.set_pen(color)
+    display.text(message, 8, 8, WIDTH - 8, 2)
 
-# Initialize tile dicts
-empty_tiles = {(x, y): board[x][y] for x in range(ROWS) for y in range(COLS) if (x, y) != (0, 0)}
-extendable_tiles = {(0, 0): board[0][0]}  # origin tile
-full_tiles = {}
-
-# Connection bitmasks
-CONNECTIONS = {
-    (1, 0): 1,  # +x
-    (0, 1): 2,  # +y
-    (0, -1): 4, # -y
-    (-1, 0): 8  # -x
-
-}
-
-# Helper to get neighbors with direction (wrapping around edges)
-def get_neighbors_with_dir(x, y):
-    neighbors = []
-    for dx, dy in CONNECTIONS:
-        nx, ny = (x + dx) % ROWS, (y + dy) % COLS
-        neighbors.append(((nx, ny), CONNECTIONS[(dx, dy)]))
-    return neighbors
-
-
-# Main loop to generate the game board
-while len(full_tiles) < ROWS * COLS:
-    if not extendable_tiles:
-        break  # failsafe 
-
-    # Randomly select one from extendable tiles A
-    A = random.choice(list(extendable_tiles.keys()))
-
-    # Find all empty neighbors of A
-    neighbors = [(n, d) for n, d in get_neighbors_with_dir(*A) if n in empty_tiles]
-    if not neighbors:
-        full_tiles[A] = extendable_tiles.pop(A)
-        continue
-
-    # Randomly select one empty neighbor B
-    B, dir_A_to_B = random.choice(neighbors)
-
-    # B should get opposite direction bitmask
-    dir_B_to_A = {1: 8, 2: 4, 4: 2, 8: 1}[dir_A_to_B]
-
-    # Debug print
-    print(f"Adding connection: A={A} val={board[A[0]][A[1]]}, B={B} val={board[B[0]][B[1]]}")
-
-    # Update connections for A and B
-    board[A[0]][A[1]] += dir_A_to_B
-    extendable_tiles[A] = board[A[0]][A[1]]
-
-    empty_tiles.pop(B)
-    board[B[0]][B[1]] += dir_B_to_A
-
-   
-    # Check if A is full
-    neighbors_of_A = [n for n, _ in get_neighbors_with_dir(*A) if n in empty_tiles]
-    if not neighbors_of_A:
-        full_tiles[A] = extendable_tiles.pop(A)
-
-    # Check if B is full or extendable
-    neighbors_of_B = [n for n, _ in get_neighbors_with_dir(*B) if n in empty_tiles]
-    if not neighbors_of_B:
-        full_tiles[B] = board[B[0]][B[1]]
-    else:
-        extendable_tiles[B] = board[B[0]][B[1]]
-
-    # Check and update neighbors of B
-    for n, _ in get_neighbors_with_dir(*B):
-        if n not in empty_tiles and n not in full_tiles:
-            n_neighbors = [m for m, _ in get_neighbors_with_dir(*n) if m in empty_tiles]
-            if not n_neighbors and n in extendable_tiles:
-                full_tiles[n] = extendable_tiles.pop(n)
-                
-# ASCII for tile values
-ASCII_TILES = {
-    0: " ",
-    1: "╺",
-    2: "╻",
-    3: "┏",
-    4: "╹",
-    5: "┗",
-    6: "┃",
-    7: "┣",
-    8: "╸",
-    9: "━",
-    10: "┓",
-    11: "┳",
-    12: "┛",
-    13: "┻",
-    14: "┫",
-    15: "╋",
-}
-
-# Helper to print ascii visualization of the board
-def print_board():
-    output = ""
-    for y in range(COLS):
-        for x in range(ROWS):
-            output += ASCII_TILES[board[x][y]]
-        output += "\n"
-    print(output)
-
-# Print board after generation
-print("Board generated")
-print_board()
-
-# Draw UI frame
+# Test function to draw a UI frame
 def draw_frame():
     w = 2 # line weight
     display.set_pen(GREEN)
@@ -156,7 +54,73 @@ def draw_frame():
     # Draw and update
     vector.draw(frame)
 
-# Helper to draw a tile
+
+# Helper to get neighbors with direction
+def get_neighbors_with_dir(x, y):
+    # Connection bitmasks
+    connections = {
+        (1, 0): 1,  # +x
+        (0, 1): 2,  # +y
+        (0, -1): 4, # -y
+        (-1, 0): 8  # -x
+    }
+    neighbors = []
+    for dx, dy in connections:
+        nx, ny = (x + dx) % ROWS, (y + dy) % COLS
+        neighbors.append(((nx, ny), connections[(dx, dy)]))
+    return neighbors
+
+
+# Generate the game board
+def generate_board():
+    # Initialize tile dicts
+    empty_tiles = {(x, y): BOARD[x][y] for x in range(ROWS) for y in range(COLS) if (x, y) != (0, 0)}
+    extendable_tiles = {(0, 0): BOARD[0][0]}  # origin tile
+    full_tiles = {}
+
+
+    while len(full_tiles) < ROWS * COLS:
+        if not extendable_tiles:
+            break  # failsafe 
+
+        # Randomly select an extendable tile A
+        A = random.choice(list(extendable_tiles.keys()))
+
+        # Randomly select an empty neighbor B
+        neighbors = [(n, d) for n, d in get_neighbors_with_dir(*A) if n in empty_tiles]
+        if not neighbors:
+            full_tiles[A] = extendable_tiles.pop(A)
+            continue # failsafe
+        B, dir_A_to_B = random.choice(neighbors)
+
+        dir_B_to_A = {1: 8, 2: 4, 4: 2, 8: 1}[dir_A_to_B] # B connection should have opposite direction
+        BOARD[A[0]][A[1]] += dir_A_to_B # Add connection to A
+        extendable_tiles[A] = BOARD[A[0]][A[1]]
+        empty_tiles.pop(B)
+        BOARD[B[0]][B[1]] += dir_B_to_A # Add connection to B 
+        # Debug print
+        print(f"New connection: A={A} val={BOARD[A[0]][A[1]]}, B={B} val={BOARD[B[0]][B[1]]}")
+       
+        # Check if A is now full
+        neighbors_of_A = [n for n, _ in get_neighbors_with_dir(*A) if n in empty_tiles]
+        if not neighbors_of_A:
+            full_tiles[A] = extendable_tiles.pop(A)
+
+        # Check if B is now full or extendable
+        neighbors_of_B = [n for n, _ in get_neighbors_with_dir(*B) if n in empty_tiles]
+        if not neighbors_of_B:
+            full_tiles[B] = BOARD[B[0]][B[1]]
+        else:
+            extendable_tiles[B] = BOARD[B[0]][B[1]]
+
+        # Check and update neighbors of B
+        for n, _ in get_neighbors_with_dir(*B):
+            if n not in empty_tiles and n not in full_tiles:
+                n_neighbors = [m for m, _ in get_neighbors_with_dir(*n) if m in empty_tiles]
+                if not n_neighbors and n in extendable_tiles:
+                    full_tiles[n] = extendable_tiles.pop(n)
+                
+# Helper to draw a tile for net game
 def draw_tile(x, y, value):
     w = 2 # line weight
     grid_size = 40
@@ -169,21 +133,53 @@ def draw_tile(x, y, value):
     display.update()
     time.sleep(0.2)
 
-# Draw all tiles
+# Draw the full board
 def draw_board():
-    for y in range(len(board[0])):
-        for x in range(len(board)):
-            value = board[x][y]            
+    for y in range(len(BOARD[0])):
+        for x in range(len(BOARD)):
+            value = BOARD[x][y]            
             draw_tile(x, y, value)
     print("Finished drawing")
     display.update()
     time.sleep(5)
 
 
-# Helper function for writing text on the display
-def write(color, message):
-    display.set_pen(color)
-    display.text(message, 8, 8, WIDTH - 8, 2)
+# Helper to print ascii visualization of the board
+def print_board():
+    # ASCII for tile values
+    ascii_tiles = {
+        0: " ",
+        1: "╺",
+        2: "╻",
+        3: "┏",
+        4: "╹",
+        5: "┗",
+        6: "┃",
+        7: "┣",
+        8: "╸",
+        9: "━",
+        10: "┓",
+        11: "┳",
+        12: "┛",
+        13: "┻",
+        14: "┫",
+        15: "╋",
+    }
+    output = ""
+    for y in range(COLS):
+        for x in range(ROWS):
+            output += ascii_tiles[BOARD[x][y]]
+        output += "\n"
+    print(output)
+
+# Prepare game
+generate_board()
+print("Board generated")
+print_board()
+
+# Draw board
+#draw_board()
+#print("Board drawn")
 
 # Main loop for handling user input
 while True:
@@ -191,6 +187,7 @@ while True:
         print("\nA")
         reset()
         draw_board()
+        print("Board drawn!")
         display.update()
         time.sleep(2)
     if button_b.is_pressed:
